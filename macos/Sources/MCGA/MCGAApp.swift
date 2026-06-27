@@ -1493,12 +1493,13 @@ final class FloatingOverlayPresenter {
             y: frame.minY + marginBottom + CGFloat(slot) * (height + gap)
         )
 
-        let panel = NSPanel(
+        let panel = NonActivatingOverlayPanel(
             contentRect: NSRect(origin: origin, size: NSSize(width: width, height: height)),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
+        panel.becomesKeyOnlyIfNeeded = true
         panel.level = .floating
         panel.isReleasedWhenClosed = false
         panel.hasShadow = true
@@ -1585,15 +1586,17 @@ struct FloatingOverlayView: View {
                                 .buttonStyle(InteractiveIconButtonStyle())
                                 .help(preferences.text(.copyResult))
                             }
-                            Text(result.parsed)
-                                .font(.system(size: 12.5, design: .monospaced))
-                                .foregroundStyle(palette.text)
-                                .textSelection(.enabled)
+                            SelectableOverlayText(
+                                result.parsed,
+                                font: .monospacedSystemFont(ofSize: 12.5, weight: .regular),
+                                textColor: palette.nsText
+                            )
                             if let details = result.details, details != result.parsed {
-                                Text(details)
-                                    .font(.system(size: 11.5, design: .monospaced))
-                                    .foregroundStyle(palette.secondaryText)
-                                    .textSelection(.enabled)
+                                SelectableOverlayText(
+                                    details,
+                                    font: .monospacedSystemFont(ofSize: 11.5, weight: .regular),
+                                    textColor: palette.nsSecondaryText
+                                )
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1627,13 +1630,54 @@ struct FloatingOverlayView: View {
     }
 }
 
+final class NonActivatingOverlayPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { false }
+}
+
+struct SelectableOverlayText: NSViewRepresentable {
+    let text: String
+    let font: NSFont
+    let textColor: NSColor
+
+    init(_ text: String, font: NSFont, textColor: NSColor) {
+        self.text = text
+        self.font = font
+        self.textColor = textColor
+    }
+
+    func makeNSView(context: Context) -> OverlaySelectableTextField {
+        let field = OverlaySelectableTextField(wrappingLabelWithString: text)
+        field.isSelectable = true
+        field.isEditable = false
+        field.isBordered = false
+        field.drawsBackground = false
+        field.lineBreakMode = .byWordWrapping
+        field.maximumNumberOfLines = 0
+        field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        field.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        return field
+    }
+
+    func updateNSView(_ field: OverlaySelectableTextField, context: Context) {
+        field.stringValue = text
+        field.font = font
+        field.textColor = textColor
+    }
+}
+
+final class OverlaySelectableTextField: NSTextField {
+    override var needsPanelToBecomeKey: Bool { true }
+}
+
 struct OverlayPalette {
     let header: Color
     let background: Color
     let card: Color
     let border: Color
     let text: Color
-    let secondaryText: Color
+    let nsText: NSColor
+    let nsSecondaryText: NSColor
 
     init(theme: AppTheme) {
         switch theme {
@@ -1643,14 +1687,16 @@ struct OverlayPalette {
             self.card = Color.white.opacity(0.92)
             self.border = Color(red: 0.35, green: 0.47, blue: 0.48).opacity(0.28)
             self.text = Color(red: 0.08, green: 0.13, blue: 0.14)
-            self.secondaryText = Color(red: 0.30, green: 0.38, blue: 0.39)
+            self.nsText = NSColor(calibratedRed: 0.08, green: 0.13, blue: 0.14, alpha: 1)
+            self.nsSecondaryText = NSColor(calibratedRed: 0.30, green: 0.38, blue: 0.39, alpha: 1)
         case .dark:
             self.header = Color(red: 0.05, green: 0.24, blue: 0.29)
             self.background = Color(red: 0.10, green: 0.13, blue: 0.14).opacity(0.98)
             self.card = Color(red: 0.16, green: 0.20, blue: 0.21).opacity(0.96)
             self.border = Color.white.opacity(0.16)
             self.text = Color.white.opacity(0.92)
-            self.secondaryText = Color.white.opacity(0.68)
+            self.nsText = NSColor(calibratedWhite: 1, alpha: 0.92)
+            self.nsSecondaryText = NSColor(calibratedWhite: 1, alpha: 0.68)
         }
     }
 }
