@@ -19,164 +19,113 @@ struct MCGAApp: App {
 struct SettingsView: View {
     @ObservedObject var model: ClipboardModel
     @ObservedObject var preferences: AppPreferences
-    let close: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text(preferences.text(.settings))
-                    .font(.title3.weight(.semibold))
-                Spacer()
-                Button {
-                    close()
-                } label: {
-                    Image(systemName: "xmark")
+        Form {
+            Section(preferences.text(.general)) {
+                Picker(preferences.text(.language), selection: $preferences.language) {
+                    Text(preferences.text(.chinese)).tag(AppLanguage.zh)
+                    Text(preferences.text(.english)).tag(AppLanguage.en)
                 }
-                .buttonStyle(InteractiveIconButtonStyle())
-                .help(preferences.text(.close))
-            }
-            .padding(16)
 
-            Divider()
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    settingPickers
-                    parserList
+                Picker(preferences.text(.theme), selection: $preferences.theme) {
+                    Text(preferences.text(.system)).tag(AppTheme.system)
+                    Text(preferences.text(.light)).tag(AppTheme.light)
+                    Text(preferences.text(.dark)).tag(AppTheme.dark)
                 }
-                .padding(16)
-            }
-        }
-        .frame(width: 620, height: 680)
-        .preferredColorScheme(preferences.theme == .dark ? .dark : .light)
-    }
 
-    private var settingPickers: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(preferences.text(.language))
-                .font(.subheadline.weight(.semibold))
-            Picker(preferences.text(.language), selection: $preferences.language) {
-                Text(preferences.text(.chinese)).tag(AppLanguage.zh)
-                Text(preferences.text(.english)).tag(AppLanguage.en)
-            }
-            .pickerStyle(.segmented)
+                Toggle(isOn: Binding(
+                    get: { preferences.launchAtLogin },
+                    set: { preferences.setLaunchAtLogin($0) }
+                )) {
+                    Text(preferences.text(.launchAtLogin))
+                }
 
-            Text(preferences.text(.theme))
-                .font(.subheadline.weight(.semibold))
-                .padding(.top, 6)
-            Picker(preferences.text(.theme), selection: $preferences.theme) {
-                Text(preferences.text(.light)).tag(AppTheme.light)
-                Text(preferences.text(.dark)).tag(AppTheme.dark)
-            }
-            .pickerStyle(.segmented)
-
-            Toggle(isOn: $preferences.historyShortcutEnabled) {
-                Text(preferences.text(.historyShortcutEnabled))
-                    .font(.subheadline.weight(.semibold))
-            }
-            .toggleStyle(.checkbox)
-            .padding(.top, 6)
-
-            Text(preferences.text(.historyShortcut))
-                .font(.subheadline.weight(.semibold))
-                .padding(.top, 6)
-            ShortcutRecorderView(
-                shortcut: $preferences.historyShortcut,
-                placeholder: preferences.text(.recordShortcut),
-                recordingText: preferences.text(.recordingShortcut)
-            )
-            .frame(height: 34)
-
-            Toggle(isOn: Binding(
-                get: { preferences.launchAtLogin },
-                set: { preferences.setLaunchAtLogin($0) }
-            )) {
-                Text(preferences.text(.launchAtLogin))
-                    .font(.subheadline.weight(.semibold))
-            }
-            .toggleStyle(.checkbox)
-            .padding(.top, 6)
-
-            if preferences.launchAtLoginNeedsApproval {
-                Text(preferences.text(.launchAtLoginNeedsApproval))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Text(preferences.text(.historyRetentionDays))
-                .font(.subheadline.weight(.semibold))
-                .padding(.top, 6)
-            Stepper(value: $preferences.historyRetentionDays, in: 0...3650) {
-                Text(preferences.historyRetentionDays == 0
-                    ? preferences.text(.historyRetentionUnlimited)
-                    : String(format: preferences.text(.historyRetentionDaysValue), preferences.historyRetentionDays)
-                )
-                .font(.subheadline)
-            }
-        }
-        .padding(12)
-        .interactiveCard()
-    }
-
-    private var parserList: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(preferences.text(.parsers))
-                .font(.subheadline.weight(.semibold))
-            ForEach(model.parserInfos) { info in
-                VStack(alignment: .leading, spacing: 8) {
-                    Toggle(isOn: Binding(
-                        get: { preferences.isParserEnabled(info.name) },
-                        set: { preferences.setParser(info.name, enabled: $0) }
-                    )) {
-                        Text(info.name)
-                            .font(.headline)
-                    }
-                    .toggleStyle(.checkbox)
-
-                    Text(description(for: info))
-                        .font(.subheadline)
+                if preferences.launchAtLoginNeedsApproval {
+                    Text(preferences.text(.launchAtLoginNeedsApproval))
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                }
 
-                    if !info.examples.isEmpty {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(preferences.text(.examples))
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                            ForEach(info.examples) { example in
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(preferences.text(.clipboardContent))
-                                        .font(.caption2.weight(.semibold))
-                                        .foregroundStyle(.secondary)
-                                    Text(example.input)
-                                        .font(.system(.caption, design: .monospaced))
-                                        .textSelection(.enabled)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
+                Stepper(value: $preferences.historyRetentionDays, in: 0...3650) {
+                    HStack {
+                        Text(preferences.text(.historyRetentionDays))
+                        Spacer()
+                        Text(preferences.historyRetentionDays == 0
+                            ? preferences.text(.historyRetentionUnlimited)
+                            : String(format: preferences.text(.historyRetentionDaysValue), preferences.historyRetentionDays)
+                        )
+                        .foregroundStyle(.secondary)
+                    }
+                }
+            }
 
-                                    Text(preferences.text(.expectedOutput))
-                                        .font(.caption2.weight(.semibold))
-                                        .foregroundStyle(.secondary)
-                                        .padding(.top, 3)
-                                    Text(expected(for: example))
-                                        .font(.caption)
-                                        .textSelection(.enabled)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                }
-                                .padding(8)
-                                .background(.background, in: RoundedRectangle(cornerRadius: 6))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .stroke(.separator, lineWidth: 1)
-                                )
+            Section(preferences.text(.shortcut)) {
+                Toggle(preferences.text(.historyShortcutEnabled), isOn: $preferences.historyShortcutEnabled)
+
+                if preferences.historyShortcutEnabled {
+                    LabeledContent(preferences.text(.historyShortcut)) {
+                        ShortcutRecorderView(
+                            shortcut: $preferences.historyShortcut,
+                            placeholder: preferences.text(.recordShortcut),
+                            recordingText: preferences.text(.recordingShortcut)
+                        )
+                        .frame(width: 180, height: 24)
+                    }
+                }
+            }
+
+            Section(preferences.text(.parsers)) {
+                ForEach(model.parserInfos) { info in
+                    parserRow(info)
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .toggleStyle(.switch)
+        .frame(width: 560, height: 620)
+        .preferredColorScheme(preferences.theme.colorScheme)
+    }
+
+    private func parserRow(_ info: ParserInfo) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle(isOn: Binding(
+                get: { preferences.isParserEnabled(info.name) },
+                set: { preferences.setParser(info.name, enabled: $0) }
+            )) {
+                Text(info.name)
+            }
+
+            Text(description(for: info))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if !info.examples.isEmpty {
+                DisclosureGroup(preferences.text(.examples)) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(info.examples) { example in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(example.input)
+                                    .font(.system(.caption, design: .monospaced))
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                Label(expected(for: example), systemImage: "arrow.turn.down.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
                             }
                         }
                     }
+                    .padding(.top, 4)
                 }
-                .padding(12)
-                .interactiveCard()
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
         }
+        .padding(.vertical, 4)
     }
 
     private func description(for info: ParserInfo) -> String {
@@ -233,9 +182,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         image?.isTemplate = true
         item.button?.image = image
         item.button?.imagePosition = .imageOnly
-        item.button?.action = #selector(togglePopover)
+        item.button?.action = #selector(statusItemActivated)
         item.button?.target = self
+        item.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
         statusItem = item
+    }
+
+    @objc private func statusItemActivated() {
+        if NSApp.currentEvent?.type == .rightMouseUp {
+            showStatusItemMenu()
+        } else {
+            togglePopover()
+        }
+    }
+
+    private func showStatusItemMenu() {
+        let menu = NSMenu()
+        let settingsItem = NSMenuItem(
+            title: "\(preferences.text(.settings))…",
+            action: #selector(openSettingsFromMenu),
+            keyEquivalent: ","
+        )
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+        menu.addItem(.separator())
+        let quitItem = NSMenuItem(
+            title: preferences.text(.quit),
+            action: #selector(quitFromMenu),
+            keyEquivalent: "q"
+        )
+        quitItem.target = self
+        menu.addItem(quitItem)
+
+        statusItem?.menu = menu
+        statusItem?.button?.performClick(nil)
+        statusItem?.menu = nil
+    }
+
+    @objc private func openSettingsFromMenu() {
+        openSettingsWindow()
+    }
+
+    @objc private func quitFromMenu() {
+        NSApp.terminate(nil)
     }
 
     @objc private func togglePopover() {
@@ -414,12 +403,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         preferences.refreshLaunchAtLogin()
         let window = makeSettingsPanel(
             title: preferences.text(.settings),
-            size: NSSize(width: 620, height: 680)
+            size: NSSize(width: 560, height: 620)
         )
         window.contentView = NSHostingView(rootView: SettingsView(
             model: model,
-            preferences: preferences,
-            close: { [weak self] in self?.settingsWindow?.close() }
+            preferences: preferences
         ))
         settingsWindow = window
         showCentered(window)
@@ -440,11 +428,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func makeSettingsPanel(title: String, size: NSSize) -> NSPanel {
         let window = CenteredPanel(
             contentRect: NSRect(origin: .zero, size: size),
-            styleMask: [.titled, .closable, .fullSizeContentView],
+            styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
-        configureCenteredPanel(window, title: title)
+        window.title = title
+        window.isReleasedWhenClosed = false
+        window.isFloatingPanel = true
+        window.level = .floating
+        window.delegate = self
         return window
     }
 
@@ -514,10 +506,19 @@ enum AppLanguage: String, CaseIterable, Identifiable {
 }
 
 enum AppTheme: String, CaseIterable, Identifiable {
+    case system
     case light
     case dark
 
     var id: String { rawValue }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: nil
+        case .light: .light
+        case .dark: .dark
+        }
+    }
 }
 
 struct KeyboardShortcut: Equatable {
@@ -527,13 +528,13 @@ struct KeyboardShortcut: Equatable {
     static let defaultHistory = KeyboardShortcut(keyCode: 9, carbonModifiers: UInt32(cmdKey | shiftKey))
 
     var displayText: String {
-        var parts: [String] = []
-        if carbonModifiers & UInt32(cmdKey) != 0 { parts.append("Command") }
-        if carbonModifiers & UInt32(shiftKey) != 0 { parts.append("Shift") }
-        if carbonModifiers & UInt32(optionKey) != 0 { parts.append("Option") }
-        if carbonModifiers & UInt32(controlKey) != 0 { parts.append("Control") }
-        parts.append(Self.keyName(for: keyCode))
-        return parts.joined(separator: " + ")
+        var text = ""
+        if carbonModifiers & UInt32(controlKey) != 0 { text += "⌃" }
+        if carbonModifiers & UInt32(optionKey) != 0 { text += "⌥" }
+        if carbonModifiers & UInt32(shiftKey) != 0 { text += "⇧" }
+        if carbonModifiers & UInt32(cmdKey) != 0 { text += "⌘" }
+        text += Self.keyName(for: keyCode)
+        return text
     }
 
     static func from(event: NSEvent) -> KeyboardShortcut? {
@@ -591,7 +592,7 @@ struct KeyboardShortcut: Equatable {
         case 33: "["
         case 34: "I"
         case 35: "P"
-        case 36: "Return"
+        case 36: "↩"
         case 37: "L"
         case 38: "J"
         case 39: "'"
@@ -603,17 +604,17 @@ struct KeyboardShortcut: Equatable {
         case 45: "N"
         case 46: "M"
         case 47: "."
-        case 48: "Tab"
+        case 48: "⇥"
         case 49: "Space"
         case 50: "`"
-        case 51: "Delete"
-        case 53: "Escape"
+        case 51: "⌫"
+        case 53: "⎋"
         case 65: "."
         case 67: "*"
         case 69: "+"
         case 71: "Clear"
         case 75: "/"
-        case 76: "Enter"
+        case 76: "⌅"
         case 78: "-"
         case 81: "="
         case 82: "0"
@@ -641,16 +642,16 @@ struct KeyboardShortcut: Equatable {
         case 114: "Help"
         case 115: "Home"
         case 116: "Page Up"
-        case 117: "Forward Delete"
+        case 117: "⌦"
         case 118: "F4"
         case 119: "End"
         case 120: "F2"
         case 121: "Page Down"
         case 122: "F1"
-        case 123: "Left"
-        case 124: "Right"
-        case 125: "Down"
-        case 126: "Up"
+        case 123: "←"
+        case 124: "→"
+        case 125: "↓"
+        case 126: "↑"
         default: "Key \(keyCode)"
         }
     }
@@ -706,7 +707,7 @@ final class AppPreferences: ObservableObject {
 
     init() {
         self.language = AppLanguage(rawValue: defaults.string(forKey: Keys.language) ?? "") ?? .zh
-        self.theme = AppTheme(rawValue: defaults.string(forKey: Keys.theme) ?? "") ?? .light
+        self.theme = AppTheme(rawValue: defaults.string(forKey: Keys.theme) ?? "") ?? .system
         self.historyShortcutEnabled = defaults.bool(forKey: Keys.historyShortcutEnabled)
         let savedKeyCode = defaults.object(forKey: Keys.historyShortcutKeyCode) as? Int
         let savedModifiers = defaults.object(forKey: Keys.historyShortcutModifiers) as? Int
@@ -994,8 +995,11 @@ enum TextKey {
     case chinese
     case english
     case theme
+    case system
     case light
     case dark
+    case general
+    case shortcut
     case parsers
     case historyShortcutEnabled
     case historyShortcut
@@ -1060,10 +1064,16 @@ enum TextKey {
         case (.en, .english): "English"
         case (.zh, .theme): "主题"
         case (.en, .theme): "Theme"
+        case (.zh, .system): "跟随系统"
+        case (.en, .system): "System"
         case (.zh, .light): "浅色"
         case (.en, .light): "Light"
         case (.zh, .dark): "深色"
         case (.en, .dark): "Dark"
+        case (.zh, .general): "通用"
+        case (.en, .general): "General"
+        case (.zh, .shortcut): "快捷键"
+        case (.en, .shortcut): "Shortcut"
         case (.zh, .parsers): "解析器"
         case (.en, .parsers): "Parsers"
         case (.zh, .historyShortcutEnabled): "启用历史快捷键"
@@ -1137,43 +1147,32 @@ struct InteractiveIconButtonStyle: ButtonStyle {
         configuration.label
             .frame(width: 26, height: 24)
             .background(
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(background(configuration: configuration))
             )
-            .foregroundStyle(isHovered ? Color.accentColor : Color.primary)
-            .scaleEffect(configuration.isPressed ? 0.90 : 1.0)
+            .foregroundStyle(.primary)
             .animation(.easeOut(duration: 0.12), value: isHovered)
-            .animation(.spring(response: 0.18, dampingFraction: 0.70), value: configuration.isPressed)
             .onHover { isHovered = $0 }
     }
 
     private func background(configuration: Configuration) -> Color {
         if configuration.isPressed {
-            return Color.accentColor.opacity(0.28)
+            return Color.primary.opacity(0.14)
         }
         if isHovered {
-            return Color.accentColor.opacity(0.16)
+            return Color.primary.opacity(0.07)
         }
         return Color.clear
     }
 }
 
 private struct InteractiveCardModifier: ViewModifier {
-    @State private var isHovered = false
-
     func body(content: Content) -> some View {
         content
             .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isHovered ? Color.accentColor.opacity(0.10) : Color(nsColor: .controlBackgroundColor).opacity(0.82))
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.7))
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isHovered ? Color.accentColor.opacity(0.35) : Color(nsColor: .separatorColor).opacity(0.55), lineWidth: 1)
-            )
-            .scaleEffect(isHovered ? 1.006 : 1.0)
-            .animation(.easeOut(duration: 0.14), value: isHovered)
-            .onHover { isHovered = $0 }
     }
 }
 
@@ -1537,96 +1536,113 @@ struct FloatingOverlayView: View {
     let showHistory: () -> Void
 
     var body: some View {
-        let palette = OverlayPalette(theme: preferences.theme)
-        VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                Image(nsImage: AppSymbols.primary ?? NSImage())
-                    .symbolRenderingMode(.hierarchical)
-                Text(title)
-                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    .lineLimit(1)
-                Spacer()
-                Button {
-                    showHistory()
-                } label: {
-                    Image(systemName: "clock.arrow.circlepath")
-                }
-                .buttonStyle(InteractiveIconButtonStyle())
-                .help(preferences.text(.history))
-                Button {
-                    if let first = results.first {
-                        copy(first.parsed)
-                    }
-                } label: {
-                    Image(systemName: "doc.on.doc")
-                }
-                .buttonStyle(InteractiveIconButtonStyle())
-                .help(preferences.text(.copyFirstResult))
-            }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 9)
-            .background(palette.header)
-
-            Divider().opacity(0.18)
-
+        VStack(alignment: .leading, spacing: 0) {
+            header
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 10) {
                     ForEach(results) { result in
-                        VStack(alignment: .leading, spacing: 7) {
-                            HStack {
-                                Text("[ \(result.parserName) ]")
-                                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                                Spacer()
-                                Button {
-                                    copy(result.parsed)
-                                } label: {
-                                    Image(systemName: "doc.on.doc")
-                                }
-                                .buttonStyle(InteractiveIconButtonStyle())
-                                .help(preferences.text(.copyResult))
-                            }
-                            SelectableOverlayText(
-                                result.parsed,
-                                font: .monospacedSystemFont(ofSize: 12.5, weight: .regular),
-                                textColor: palette.nsText
-                            )
-                            if let details = result.details, details != result.parsed {
-                                SelectableOverlayText(
-                                    details,
-                                    font: .monospacedSystemFont(ofSize: 11.5, weight: .regular),
-                                    textColor: palette.nsSecondaryText
-                                )
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
-                        .background(palette.card, in: RoundedRectangle(cornerRadius: 8))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(palette.border, lineWidth: 1)
-                        )
+                        resultCard(result)
                     }
                 }
                 .padding(12)
             }
         }
         .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(palette.background)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(.regularMaterial)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(palette.border, lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color(nsColor: .separatorColor).opacity(0.35), lineWidth: 0.5)
         )
-        .foregroundStyle(palette.text)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .preferredColorScheme(preferences.theme.colorScheme)
     }
 
-    private var title: String {
-        let parser = results.first?.parserName ?? "MCGA"
+    private var header: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "doc.text.magnifyingglass")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 30, height: 30)
+                .background(Color.accentColor.gradient, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text("MCGA")
+                    .font(.system(size: 13, weight: .semibold))
+                Text(contentPreview)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            Spacer(minLength: 8)
+
+            Button {
+                showHistory()
+            } label: {
+                Image(systemName: "clock.arrow.circlepath")
+            }
+            .buttonStyle(InteractiveIconButtonStyle())
+            .help(preferences.text(.history))
+
+            Button {
+                if let first = results.first {
+                    copy(first.parsed)
+                }
+            } label: {
+                Image(systemName: "doc.on.doc")
+            }
+            .buttonStyle(InteractiveIconButtonStyle())
+            .help(preferences.text(.copyFirstResult))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+    }
+
+    private func resultCard(_ result: ParseResult) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(result.parserName)
+                    .font(.system(size: 10.5, weight: .semibold))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2.5)
+                    .background(Color.accentColor.opacity(0.14), in: Capsule())
+                    .foregroundStyle(Color.accentColor)
+                Spacer()
+                Button {
+                    copy(result.parsed)
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                }
+                .buttonStyle(InteractiveIconButtonStyle())
+                .help(preferences.text(.copyResult))
+            }
+            SelectableOverlayText(
+                result.parsed,
+                font: .monospacedSystemFont(ofSize: 12.5, weight: .regular),
+                textColor: .labelColor
+            )
+            if let details = result.details, details != result.parsed {
+                SelectableOverlayText(
+                    details,
+                    font: .monospacedSystemFont(ofSize: 11.5, weight: .regular),
+                    textColor: .secondaryLabelColor
+                )
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.85))
+        )
+    }
+
+    private var contentPreview: String {
         let preview = content.replacingOccurrences(of: "\n", with: " ")
-        return "[\(parser)] \(String(preview.prefix(40)))"
+        return String(preview.prefix(80))
     }
 }
 
@@ -1670,37 +1686,6 @@ final class OverlaySelectableTextField: NSTextField {
     override var needsPanelToBecomeKey: Bool { true }
 }
 
-struct OverlayPalette {
-    let header: Color
-    let background: Color
-    let card: Color
-    let border: Color
-    let text: Color
-    let nsText: NSColor
-    let nsSecondaryText: NSColor
-
-    init(theme: AppTheme) {
-        switch theme {
-        case .light:
-            self.header = Color(red: 0.10, green: 0.34, blue: 0.38)
-            self.background = Color(red: 0.94, green: 0.97, blue: 0.96).opacity(0.98)
-            self.card = Color.white.opacity(0.92)
-            self.border = Color(red: 0.35, green: 0.47, blue: 0.48).opacity(0.28)
-            self.text = Color(red: 0.08, green: 0.13, blue: 0.14)
-            self.nsText = NSColor(calibratedRed: 0.08, green: 0.13, blue: 0.14, alpha: 1)
-            self.nsSecondaryText = NSColor(calibratedRed: 0.30, green: 0.38, blue: 0.39, alpha: 1)
-        case .dark:
-            self.header = Color(red: 0.05, green: 0.24, blue: 0.29)
-            self.background = Color(red: 0.10, green: 0.13, blue: 0.14).opacity(0.98)
-            self.card = Color(red: 0.16, green: 0.20, blue: 0.21).opacity(0.96)
-            self.border = Color.white.opacity(0.16)
-            self.text = Color.white.opacity(0.92)
-            self.nsText = NSColor(calibratedWhite: 1, alpha: 0.92)
-            self.nsSecondaryText = NSColor(calibratedWhite: 1, alpha: 0.68)
-        }
-    }
-}
-
 struct ClipboardPopoverView: View {
     @ObservedObject var model: ClipboardModel
     @ObservedObject var preferences: AppPreferences
@@ -1715,17 +1700,8 @@ struct ClipboardPopoverView: View {
     var body: some View {
         VStack(spacing: 0) {
             toolbar
-            if let notice = model.copyNotice {
-                Text(notice)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 5)
-                    .background(Color.accentColor)
-                    .transition(.opacity)
-            }
             Divider()
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 12) {
                 searchField
                 historyView
             }
@@ -1734,6 +1710,24 @@ struct ClipboardPopoverView: View {
         }
         .frame(minWidth: 420, minHeight: 520)
         .background(HistoryKeyboardCaptureView { handleHistoryKeyAction($0) })
+        .overlay(alignment: .top) {
+            if let notice = model.copyNotice {
+                Label(notice, systemImage: "checkmark.circle.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(.regularMaterial, in: Capsule())
+                    .overlay(
+                        Capsule()
+                            .stroke(Color(nsColor: .separatorColor).opacity(0.4), lineWidth: 0.5)
+                    )
+                    .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
+                    .padding(.top, 46)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: model.copyNotice)
         .onAppear {
             selectFirstHistoryIfNeeded()
         }
@@ -1743,13 +1737,14 @@ struct ClipboardPopoverView: View {
         .onChange(of: searchText) {
             reconcileHistorySelection()
         }
-        .preferredColorScheme(preferences.theme == .dark ? .dark : .light)
+        .preferredColorScheme(preferences.theme.colorScheme)
     }
 
     private var toolbar: some View {
-        HStack(spacing: 8) {
-            Image(nsImage: AppSymbols.primary ?? NSImage())
+        HStack(spacing: 6) {
+            Image(systemName: "doc.text.magnifyingglass")
                 .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(Color.accentColor)
             Text("MCGA")
                 .font(.headline)
             Spacer()
@@ -1772,25 +1767,20 @@ struct ClipboardPopoverView: View {
             } label: {
                 Image(systemName: "gearshape")
             }
+            .keyboardShortcut(",", modifiers: .command)
             .help(preferences.text(.openSettings))
-
-            Button {
-                NSApp.terminate(nil)
-            } label: {
-                Image(systemName: "power")
-            }
-            .help(preferences.text(.quit))
 
             Button {
                 close()
             } label: {
                 Image(systemName: "xmark")
             }
+            .keyboardShortcut(.escape, modifiers: [])
             .help(preferences.text(.close))
         }
         .buttonStyle(InteractiveIconButtonStyle())
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
     }
 
     private var searchField: some View {
@@ -1835,11 +1825,17 @@ struct ClipboardPopoverView: View {
             }
             let entries = filteredHistory
             if model.history.isEmpty {
-                Text(preferences.text(.noHistory))
-                    .foregroundStyle(.secondary)
+                ContentUnavailableView {
+                    Label(preferences.text(.noHistory), systemImage: "tray")
+                } description: {
+                    Text(preferences.text(.emptyHint))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if entries.isEmpty {
-                Text(preferences.text(.noSearchResults))
-                    .foregroundStyle(.secondary)
+                ContentUnavailableView {
+                    Label(preferences.text(.noSearchResults), systemImage: "magnifyingglass")
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 HStack(alignment: .top, spacing: 12) {
                     VStack(alignment: .leading, spacing: 8) {
@@ -1920,12 +1916,17 @@ struct ClipboardPopoverView: View {
             .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color.accentColor.opacity(0.16) : Color(nsColor: .controlBackgroundColor).opacity(0.82))
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(isSelected ? Color.accentColor.opacity(0.14) : Color(nsColor: .controlBackgroundColor))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.accentColor.opacity(0.55) : Color(nsColor: .separatorColor).opacity(0.55), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(
+                        isSelected
+                            ? Color.accentColor.opacity(0.4)
+                            : Color(nsColor: .separatorColor).opacity(0.7),
+                        lineWidth: 1
+                    )
             )
         }
         .buttonStyle(.plain)
@@ -1937,32 +1938,47 @@ struct ClipboardPopoverView: View {
                 attachmentPreview(entry)
             } else {
                 ForEach(Array(entry.results.enumerated()), id: \.offset) { index, result in
-                    HStack(alignment: .top, spacing: 8) {
-                        VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack {
                             Text(result.parserName)
-                                .font(.caption.weight(.semibold))
-                            Text(result.parsed)
-                                .font(.system(.caption, design: .monospaced))
+                                .font(.system(size: 10.5, weight: .semibold))
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 2)
+                                .background(Color.accentColor.opacity(0.12), in: Capsule())
+                                .foregroundStyle(Color.accentColor)
+                            Spacer()
+                            Button {
+                                model.promoteHistoryEntry(id: entry.id)
+                                model.copy(result.parsed)
+                            } label: {
+                                Image(systemName: "doc.on.doc")
+                            }
+                            .buttonStyle(InteractiveIconButtonStyle())
+                            .help(preferences.text(.copyResult))
+                        }
+                        Text(result.parsed)
+                            .font(.system(.caption, design: .monospaced))
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        if let details = result.details, details != result.parsed {
+                            Text(details)
+                                .font(.system(size: 10.5, design: .monospaced))
+                                .foregroundStyle(.secondary)
                                 .textSelection(.enabled)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                            if let details = result.details, details != result.parsed {
-                                Text(details)
-                                    .font(.system(size: 10.5, design: .monospaced))
-                                    .foregroundStyle(.secondary)
-                                    .textSelection(.enabled)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
                         }
                     }
                     .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(focusedPane == .parsed && selectedResultIndex == index ? Color.accentColor.opacity(0.16) : Color(nsColor: .controlBackgroundColor).opacity(0.82))
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(focusedPane == .parsed && selectedResultIndex == index ? Color.accentColor.opacity(0.14) : Color(nsColor: .controlBackgroundColor).opacity(0.7))
                     )
                     .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(focusedPane == .parsed && selectedResultIndex == index ? Color.accentColor.opacity(0.55) : Color(nsColor: .separatorColor).opacity(0.55), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(focusedPane == .parsed && selectedResultIndex == index ? Color.accentColor.opacity(0.4) : .clear, lineWidth: 1)
                     )
+                    .contentShape(Rectangle())
                     .onTapGesture {
                         focusedPane = .parsed
                         selectedResultIndex = index

@@ -22,6 +22,27 @@ source ~/.zshrc && open .build/MCGA.app
 source ~/.zshrc && pkill MCGA
 ```
 
+## 重新安装
+
+修改后重新安装 MCGA 时，必须完整执行构建、替换 App、重置辅助功能权限和重启流程，不要只打开 `.build/MCGA.app`：
+
+```bash
+source ~/.zshrc
+cd macos
+bash scripts/build-macos-app.sh
+pkill MCGA || true
+if [[ -d /Applications/MCGA.app ]]; then
+  mv /Applications/MCGA.app "/Users/jimyag/.Trash/MCGA-previous-$(date +%Y%m%d-%H%M%S).app"
+fi
+ditto .build/MCGA.app /Applications/MCGA.app
+codesign --verify --strict --verbose=2 /Applications/MCGA.app
+tccutil reset Accessibility com.jimyag.mcga
+open /Applications/MCGA.app
+open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+```
+
+重置后需要在“系统设置 > 隐私与安全性 > 辅助功能”中重新启用 `MCGA.app`。
+
 ## 架构概览
 
 ```
